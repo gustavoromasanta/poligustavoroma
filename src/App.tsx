@@ -9,8 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-
-import $ from "jquery";
 import axios from "axios";
 
 export const api = axios.create({
@@ -21,6 +19,8 @@ function App() {
   const [pokemons, setPokemons] = useState([]);
   const [next, setNext] = useState(null);
   const [prev, setPrev] = useState(null);
+  const [namePokemon, setNamePokemon] = useState(null);
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     api.get("pokemon").then((res) => {
@@ -28,56 +28,53 @@ function App() {
         setNext(res.data.next);
         setPrev(res.data.previous);
     }).catch((err) => console.warn(err));
+  },[]);
 
-    $('button.sairBusca').on('click',function(){
-      window.location.href = '/';
-    });
+  const sairBusca = () => {
+    window.location.href = '/';
+  };
 
-    $('button.buscarPokemon').on('click',function(){
-      const input = $('input.inputPokemon').val();
+  const buscarPokemon = () => {
+    if(namePokemon){
+      axios({
+        method: "GET",
+        url: `https://pokeapi.co/api/v2/pokemon/${namePokemon}`
+      })
+        .then(response => {
+          //console.log('response.data >>> ', response.data);
 
-      if(input.length > 3){
-        axios({
-          method: "GET",
-          url: `https://pokeapi.co/api/v2/pokemon/${input}`
-        })
-          .then(response => {
-            console.log('response.data >>> ', response.data);
+          if(response){
+            const nome = response.data.name;
+            const firstNamecharAt = nome.charAt(0);
+            const habilidades = response.data.abilities.map(ability => ability.ability.name).join(', ').toString();
+            const urlImg = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+response.data.id+'.png';
 
-            if(response){
-              const nome = response.data.name;
-              const firstNamecharAt = nome.charAt(0);
-              const habilidades = response.data.abilities.map(ability => ability.ability.name).join(', ').toString();
-              const urlImg = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+response.data.id+'.png';
-
-              const card = `<div class="rounded-xl border bg-card text-card-foreground shadow pokemon w-[350px] mb-5 mt-5" rel="${nome}">
-                <div class="space-y-1.5 p-6 w-[100%] flex flex-row flex-wrap justify-items-center justify-center">
-                  <span class="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full mr-5">
-                    <span class="flex h-full w-full items-center justify-center rounded-full bg-muted">${firstNamecharAt}</span>
-                  </span>
-                  <div>
-                    <h3 class="font-semibold leading-none tracking-tight w-full nomePokemon">${nome}</h3>
-                    <p class="text-sm text-muted-foreground habilidades w-full" rel="${nome}">${habilidades}</p>
-                  </div>
-                  <span class="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full ml-5">
-                    <img class="aspect-square h-full w-full" alt="${nome}" src="${urlImg}">
-                  </span>
+            const card = `<div class="rounded-xl border bg-card text-card-foreground shadow pokemon w-[350px] mb-5 mt-5" rel="${nome}">
+              <div class="space-y-1.5 p-6 w-[100%] flex flex-row flex-wrap justify-items-center justify-center">
+                <span class="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full mr-5">
+                  <span class="flex h-full w-full items-center justify-center rounded-full bg-muted">${firstNamecharAt}</span>
+                </span>
+                <div>
+                  <h3 class="font-semibold leading-none tracking-tight w-full nomePokemon">${nome}</h3>
+                  <p class="text-sm text-muted-foreground habilidades w-full" rel="${nome}">${habilidades}</p>
                 </div>
-              </div>`;
-              
-              $('div.wrapperCards').html(card);
-              $('div.sairbusca').removeClass('hidden');
-              $('div.paginacao').addClass('hidden')
-            }
-          })
-          .catch(error => {
-            alert('Erro ao obter informações do Pokémon: '+error.message+'');
-          });
-        }else{
-          alert('Digite um nome válido de Polemon!');
-        }
-    });
-  }, []);
+                <span class="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full ml-5">
+                  <img class="aspect-square h-full w-full" alt="${nome}" src="${urlImg}">
+                </span>
+              </div>
+            </div>`;
+            
+            document.querySelector(".wrapperCards").innerHTML = ''+card+'';
+            setIsActive(current => !current);
+          }
+        })
+        .catch(error => {
+          alert('Erro ao obter informações do Pokémon: '+error.message+'');
+        });
+      }else{
+        alert('Digite um nome válido de Polemon!');
+      }
+  };
 
   const getPokemonInfo = (name) => {
     axios({
@@ -85,10 +82,11 @@ function App() {
       url: `https://pokeapi.co/api/v2/pokemon/${name}`
     })
       .then(response => {
+        console.log('response >> ',response);
         const nome = response.data.name;
         const habilidades = response.data.abilities.map(ability => ability.ability.name).join(', ').toString();
       
-        $('p.habilidades[rel="'+nome+'"]').html(habilidades);        
+        document.querySelector("p.habilidades[rel="+nome+"]").innerHTML = ''+habilidades+'';
       })
       .catch(error => {
         console.error('Erro ao obter informações do Pokémon:', error.message);
@@ -126,8 +124,20 @@ function App() {
       <div className="absolute bottom-0 left-0 right-0 top-0 grid place-items-center">
 
         <div className="flex w-full max-w-sm items-center space-x-2">
-          <Input className="inputPokemon" type="text" placeholder="Buscar Pokemon" />
-          <Button className="buscarPokemon" type="submit">Buscar</Button>
+          <Input
+            className="inputPokemon"
+            type="text"
+            placeholder="Buscar Pokemon"
+            value={namePokemon == null ? '' : namePokemon}
+            onChange={(input) => {setNamePokemon(input?.target?.value)}
+            }
+          />
+          <Button
+            onClick={() => buscarPokemon(namePokemon)}
+            className="buscarPokemon"
+            type="submit">
+            Buscar
+          </Button>
         </div>
 
         <ScrollArea className="h-[380px] w-[380px] rounded-md border p-4 wrapperCards">
@@ -154,7 +164,7 @@ function App() {
           })}
         </ScrollArea>
 
-        <div className="rounded-md border p-5 paginacao">
+        <div className={isActive ? '"rounded-md border p-5 paginacao hidden' : '"rounded-md border p-5 paginacao'}>
           <Button
             onClick={() => seePrev(prev)}
             disabled={prev === null ? true : false}
@@ -171,9 +181,11 @@ function App() {
             Próximos
           </Button>
         </div>
-
-        <div className="rounded-md border p-5 sairbusca hidden">
-          <Button className="sairBusca">
+        {/*"rounded-md border p-5 sairbusca"*/}
+        <div className={isActive ? 'rounded-md border p-5 sairbusca' : 'rounded-md border p-5 sairbusca hidden'}>
+          <Button 
+            onClick={() => sairBusca()}
+            className="sairBusca">
             Limpar Busca
           </Button>
         </div>
